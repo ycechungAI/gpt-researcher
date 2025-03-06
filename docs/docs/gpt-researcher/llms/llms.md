@@ -1,64 +1,99 @@
 # Configure LLM
 
-As described in the [introduction](/docs/gpt-researcher/gptr/config), the default LLM is OpenAI due to its superior performance and speed. 
-With that said, GPT Researcher supports various open/closed source LLMs, and you can easily switch between them by adding the `LLM_PROVIDER` env variable and corresponding configuration params.
-Current supported LLMs are `openai`, `google` (gemini), `azure_openai`, `ollama`, `anthropic`, `mistral`, `huggingface` and `groq`.
+As described in the [introduction](/docs/gpt-researcher/gptr/config), the default LLM and embedding is OpenAI due to its superior performance and speed. 
+With that said, GPT Researcher supports various open/closed source LLMs and embeddings, and you can easily switch between them by updating the `SMART_LLM`, `FAST_LLM` and `EMBEDDING` env variables. You might also need to include the provider API key and corresponding configuration params.
 
-Using any model will require at least updating the `LLM_PROVIDER` param and passing the LLM provider API Key. You might also need to update the `SMART_LLM_MODEL` and `FAST_LLM_MODEL` env vars.
-To learn more about support customization options see [here](/gpt-researcher/config).
+Current supported LLMs are `openai`, `anthropic`, `azure_openai`, `cohere`, `google_vertexai`, `google_genai`, `fireworks`, `ollama`, `together`, `mistralai`, `huggingface`, `groq`, `bedrock` and `litellm`.
 
-**Please note**: GPT Researcher is optimized and heavily tested on GPT models. Some other models might run intro context limit errors, and unexpected responses.
+Current supported embeddings are `openai`, `azure_openai`, `cohere`, `google_vertexai`, `google_genai`, `fireworks`, `ollama`, `together`, `mistralai`, `huggingface`, `nomic` ,`voyageai` and `bedrock`.
+
+To learn more about support customization options see [here](/gpt-researcher/gptr/config).
+
+**Please note**: GPT Researcher is optimized and heavily tested on GPT models. Some other models might run into context limit errors, and unexpected responses.
 Please provide any feedback in our [Discord community](https://discord.gg/DUmbTebB) channel, so we can better improve the experience and performance.
 
 Below you can find examples for how to configure the various supported LLMs.
 
-## Custom OpenAI
+## OpenAI
+
+```bash
+# set the custom OpenAI API key
+OPENAI_API_KEY=[Your Key]
+
+# specify llms
+FAST_LLM="openai:gpt-4o-mini"
+SMART_LLM="openai:gpt-4o"
+STRATEGIC_LLM="openai:o1-preview"
+
+# specify embedding
+EMBEDDING="openai:text-embedding-3-small"
+```
+
+
+## Custom LLM
+
 Create a local OpenAI API using [llama.cpp Server](https://github.com/ggerganov/llama.cpp/blob/master/examples/server/README.md#quick-start).
 
-### Custom OpenAI API LLM
+For custom LLM, specify "openai:{your-llm}"
 ```bash
-# use a custom OpenAI API LLM provider
-LLM_PROVIDER="openai"
-
 # set the custom OpenAI API url
 OPENAI_BASE_URL="http://localhost:1234/v1"
 # set the custom OpenAI API key
-OPENAI_API_KEY="Your Key"
+OPENAI_API_KEY="dummy_key"
 
-# specify the custom OpenAI API llm model  
-FAST_LLM_MODEL="gpt-4o-mini"
-# specify the custom OpenAI API llm model  
-SMART_LLM_MODEL="gpt-4o"
-
+# specify custom llms  
+FAST_LLM="openai:your_fast_llm"
+SMART_LLM="openai:your_smart_llm"
+STRATEGIC_LLM="openai:your_strategic_llm"
 ```
-### Custom OpenAI API Embedding
-```bash
-# use a custom OpenAI API EMBEDDING provider
-EMBEDDING_PROVIDER="custom"
 
+For custom embedding, set "custom:{your-embedding}"
+```bash
 # set the custom OpenAI API url
 OPENAI_BASE_URL="http://localhost:1234/v1"
 # set the custom OpenAI API key
-OPENAI_API_KEY="Your Key"
+OPENAI_API_KEY="dummy_key"
 
-# specify the custom OpenAI API embedding model   
-OPENAI_EMBEDDING_MODEL="custom_model"
+# specify the custom embedding model   
+EMBEDDING="custom:your_embedding"
 ```
 
-### Azure OpenAI
 
-See also the documentation in the Langchain [Azure OpenAI](https://api.python.langchain.com/en/latest/chat_models/langchain_openai.chat_models.azure.AzureChatOpenAI.html) page.
+## Azure OpenAI
 
-On Azure OpenAI you will need to create deployments for each model you want to use. Please also specify the model names/deployment names in your `.env` file:
+In Azure OpenAI you have to chose which models you want to use and make deployments for each model. You do this on the [Azure OpenAI Portal](https://portal.azure.com/). 
+
+In January 2025 the models that are recommended to use are: 
+
+- gpt-4o-mini
+- gpt-4o
+- o1-preview or o1-mini (You might need to request access to these models before you can deploy them).
+
+Please then specify the model names/deployment names in your `.env` file.
+
+**Required Precondition** 
+
+- Ypur endpoint can have any valid name.
+- A model's deployment name *must be the same* as the model name.
+- You need to deploy an *Embedding Model*: To ensure optimal performance, GPT Researcher requires the 'text-embedding-3-large' model. Please deploy this specific model to your Azure Endpoint.
+
+**Recommended**:
+
+- Quota increase: You should also request a quota increase especially for the embedding model, as the default quota is not sufficient. 
 
 ```bash
-EMBEDDING_PROVIDER="azure_openai"
-AZURE_OPENAI_API_KEY="Your key"
-AZURE_OPENAI_ENDPOINT="https://<your-endpoint>.openai.azure.com/"
+# set the azure api key and deployment as you have configured it in Azure Portal. There is no default access point unless you configure it yourself!
+AZURE_OPENAI_API_KEY="[Your Key]"
+AZURE_OPENAI_ENDPOINT="https://{your-endpoint}.openai.azure.com/"
 OPENAI_API_VERSION="2024-05-01-preview"
-FAST_LLM_MODEL="gpt-4o-mini"
-DEFAULT_LLM_MODEL="gpt-4o-mini"
-SMART_LLM_MODEL="gpt-4o"
+
+# each string is "azure_openai:deployment_name". ensure that your deployment have the same name as the model you use!
+FAST_LLM="azure_openai:gpt-4o-mini" 
+SMART_LLM="azure_openai:gpt-4o"
+STRATEGIC_LLM="azure_openai:o1-preview"
+
+# specify embedding
+EMBEDDING="azure_openai:text-embedding-3-large"
 ```
 
 
@@ -68,25 +103,12 @@ GPT Researcher supports both Ollama LLMs and embeddings. You can choose each or 
 To use [Ollama](http://www.ollama.com) you can set the following environment variables
 
 ```bash
-# Use ollama for both, LLM and EMBEDDING provider
-LLM_PROVIDER=ollama
-
-# Ollama endpoint to use
 OLLAMA_BASE_URL=http://localhost:11434
+FAST_LLM="ollama:llama3"
+SMART_LLM="ollama:llama3"
+STRATEGIC_LLM="ollama:llama3"
 
-# Specify one of the LLM models supported by Ollama
-FAST_LLM_MODEL=llama3
-# Specify one of the LLM models supported by Ollama 
-SMART_LLM_MODEL=llama3 
-# The temperature to use, defaults to 0.55
-TEMPERATURE=0.55
-```
-
-**Optional** - You can also use ollama for embeddings
-```bash
-EMBEDDING_PROVIDER=ollama
-# Specify one of the embedding models supported by Ollama 
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+EMBEDDING="ollama:nomic-embed-text"
 ```
 
 ## Groq
@@ -105,18 +127,12 @@ To leverage Groq in GPT-Researcher, you will need a GroqCloud account and an API
 And finally, you will need to configure the GPT-Researcher Provider and Model variables:
 
 ```bash
-# To use Groq set the llm provider to groq
-LLM_PROVIDER=groq
 GROQ_API_KEY=[Your Key]
 
 # Set one of the LLM models supported by Groq
-FAST_LLM_MODEL=Mixtral-8x7b-32768
-
-# Set one of the LLM models supported by Groq
-SMART_LLM_MODEL=Mixtral-8x7b-32768 
-
-# The temperature to use defaults to 0.55
-TEMPERATURE=0.55
+FAST_LLM="groq:Mixtral-8x7b-32768"
+SMART_LLM="groq:Mixtral-8x7b-32768"
+STRATEGIC_LLM="groq:Mixtral-8x7b-32768"
 ```
 
 __NOTE:__ As of the writing of this Doc (May 2024), the available Language Models from Groq are:
@@ -126,62 +142,159 @@ __NOTE:__ As of the writing of this Doc (May 2024), the available Language Model
 * Mixtral-8x7b-32768
 * Gemma-7b-it
 
+
 ## Anthropic
-[Anthropic](https://www.anthropic.com/) is an AI safety and research company, and is the creator of Claude. This page covers all integrations between Anthropic models and LangChain.
 
+Refer to Anthropic [Getting started page](https://docs.anthropic.com/en/api/getting-started) to obtain Anthropic API key. Update the corresponding env vars, for example:
 ```bash
-LLM_PROVIDER=anthropic
 ANTHROPIC_API_KEY=[Your key]
+FAST_LLM="anthropic:claude-2.1"
+SMART_LLM="anthropic:claude-3-opus-20240229"
+STRATEGIC_LLM="anthropic:claude-3-opus-20240229"
 ```
 
-You can then define the fast and smart LLM models for example:
-```bash
-FAST_LLM_MODEL=claude-2.1
-SMART_LLM_MODEL=claude-3-opus-20240229
-```
+Anthropic does not offer its own embedding model. 
 
-You can then define the fast and smart LLM models for example:
-```bash
-FAST_LLM_MODEL=claude-2.1
-SMART_LLM_MODEL=claude-3-opus-20240229
-```
 
-## Mistral
+## Mistral AI
+
 Sign up for a [Mistral API key](https://console.mistral.ai/users/api-keys/). 
 Then update the corresponding env vars, for example:
 ```bash
-LLM_PROVIDER=mistral
-ANTHROPIC_API_KEY=[Your key]
-FAST_LLM_MODEL=open-mistral-7b
-SMART_LLM_MODEL=mistral-large-latest
+MISTRAL_API_KEY=[Your key]
+FAST_LLM="mistralai:open-mistral-7b"
+SMART_LLM="mistralai:mistral-large-latest"
+STRATEGIC_LLM="mistralai:mistral-large-latest"
+
+EMBEDDING="mistralai:mistral-embed"
 ```
+
 
 ## Together AI
 [Together AI](https://www.together.ai/) offers an API to query [50+ leading open-source models](https://docs.together.ai/docs/inference-models) in a couple lines of code.
 Then update corresponding env vars, for example:
 ```bash
-LLM_PROVIDER=together
 TOGETHER_API_KEY=[Your key]
-FAST_LLM_MODEL=meta-llama/Llama-3-8b-chat-hf
-SMART_LLM_MODEL=meta-llama/Llama-3-70b-chat-hf
+FAST_LLM="together:meta-llama/Llama-3-8b-chat-hf"
+SMART_LLM="together:meta-llama/Llama-3-70b-chat-hf"
+STRATEGIC_LLM="together:meta-llama/Llama-3-70b-chat-hf"
+
+EMBEDDING="mistralai:nomic-ai/nomic-embed-text-v1.5"
 ```
+
 
 ## HuggingFace
+
 This integration requires a bit of extra work. Follow [this guide](https://python.langchain.com/v0.1/docs/integrations/chat/huggingface/) to learn more.
 After you've followed the tutorial above, update the env vars:
-
 ```bash
-LLM_PROVIDER=huggingface
 HUGGINGFACE_API_KEY=[Your key]
-FAST_LLM_MODEL=HuggingFaceH4/zephyr-7b-beta
-SMART_LLM_MODEL=HuggingFaceH4/zephyr-7b-beta
+FAST_LLM="huggingface:HuggingFaceH4/zephyr-7b-beta"
+SMART_LLM="huggingface:HuggingFaceH4/zephyr-7b-beta"
+STRATEGIC_LLM="huggingface:HuggingFaceH4/zephyr-7b-beta"
+
+EMBEDDING="sentence-transformers/all-MiniLM-L6-v2"
 ```
 
-## Google Gemini
-Sign up [here](https://ai.google.dev/gemini-api/docs/api-key) for obtaining a Google Gemini API Key and update the following env vars:
 
-Please make sure to update fast and smart models to corresponding valid Gemini models.
+## Google Gemini
+
+Sign up [here](https://ai.google.dev/gemini-api/docs/api-key) for obtaining a Google Gemini API Key and update the following env vars:
 ```bash
-LLM_PROVIDER=google
-GEMINI_API_KEY=[Your key]
+GOOGLE_API_KEY=[Your key]
+FAST_LLM="google_genai:gemini-1.5-flash"
+SMART_LLM="google_genai:gemini-1.5-pro"
+STRATEGIC_LLM="google_genai:gemini-1.5-pro"
+
+EMBEDDING="google_genai:models/text-embedding-004"
+```
+
+
+## Google VertexAI
+
+```bash
+FAST_LLM="google_vertexai:gemini-1.5-flash-001"
+SMART_LLM="google_vertexai:gemini-1.5-pro-001"
+STRATEGIC_LLM="google_vertexai:gemini-1.5-pro-001"
+
+EMBEDDING="google_vertexai:text-embedding-004"
+```
+
+
+## Cohere
+
+```bash
+COHERE_API_KEY=[Your key]
+FAST_LLM="cohere:command"
+SMART_LLM="cohere:command-nightly"
+STRATEGIC_LLM="cohere:command-nightly"
+
+EMBEDDING="cohere:embed-english-v3.0"
+```
+
+
+## Fireworks
+
+```bash
+FIREWORKS_API_KEY=[Your key]
+base_url="https://api.fireworks.ai/inference/v1/completions"
+FAST_LLM="fireworks:accounts/fireworks/models/mixtral-8x7b-instruct"
+SMART_LLM="fireworks:accounts/fireworks/models/mixtral-8x7b-instruct"
+STRATEGIC_LLM="fireworks:accounts/fireworks/models/mixtral-8x7b-instruct"
+
+EMBEDDING="fireworks:nomic-ai/nomic-embed-text-v1.5"
+```
+
+
+## Bedrock
+
+```bash
+FAST_LLM="bedrock:anthropic.claude-3-sonnet-20240229-v1:0"
+SMART_LLM="bedrock:anthropic.claude-3-sonnet-20240229-v1:0"
+STRATEGIC_LLM="bedrock:anthropic.claude-3-sonnet-20240229-v1:0"
+
+EMBEDDING="bedrock:amazon.titan-embed-text-v2:0"
+```
+
+
+## LiteLLM
+
+```bash
+FAST_LLM="litellm:perplexity/pplx-7b-chat"
+SMART_LLM="litellm:perplexity/pplx-70b-chat"
+STRATEGIC_LLM="litellm:perplexity/pplx-70b-chat"
+```
+
+
+## xAI
+
+```bash
+FAST_LLM="xai:grok-beta"
+SMART_LLM="xai:grok-beta"
+STRATEGIC_LLM="xai:grok-beta"
+```
+
+
+## DeepSeek
+```bash
+DEEPSEEK_API_KEY=[Your key]
+FAST_LLM="deepseek:deepseek-chat"
+SMART_LLM="deepseek:deepseek-chat"
+STRATEGIC_LLM="deepseek:deepseek-chat"
+```
+
+
+## Other Embedding Models
+
+### Nomic
+
+```bash
+EMBEDDING="nomic:nomic-embed-text-v1.5"
+```
+
+### VoyageAI
+
+```bash
+VOYAGE_API_KEY=[Your Key]
+EMBEDDING="voyageai:voyage-law-2"
 ```

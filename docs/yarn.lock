@@ -6415,7 +6415,7 @@ react-base16-styling@^0.6.0:
     pure-color "^1.2.0"
 
 react-dev-utils@12.0.0-next.47:
-  version "12.0.0-next.47+1465357b"
+  version "12.0.0-next.47"
   resolved "https://registry.npmmirror.com/react-dev-utils/-/react-dev-utils-12.0.0-next.47.tgz"
   integrity sha512-PsE71vP15TZMmp/RZKOJC4fYD5Pvt0+wCoyG3QHclto0d4FyIJI78xGRICOOThZFROqgXYlZP6ddmeybm+jO4w==
   dependencies:

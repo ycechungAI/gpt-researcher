@@ -19,6 +19,7 @@
       collapsed: false,
       items: [
         'gpt-researcher/getting-started/introduction',
+        'gpt-researcher/getting-started/how-to-choose',
         'gpt-researcher/getting-started/getting-started',
         'gpt-researcher/getting-started/cli',
         'gpt-researcher/getting-started/getting-started-with-docker',
@@ -32,12 +33,13 @@
       collapsed: true,
       items: [
         'gpt-researcher/gptr/pip-package',
+        'gpt-researcher/gptr/npm-package',
         'gpt-researcher/gptr/example',
         'gpt-researcher/gptr/config',
         'gpt-researcher/gptr/scraping',
         'gpt-researcher/gptr/querying-the-backend',
         'gpt-researcher/gptr/automated-tests',
-        'gpt-researcher/gptr/troubleshooting',
+        'gpt-researcher/gptr/troubleshooting'
       ],
     },
     {
@@ -46,8 +48,11 @@
       collapsible: true,
       collapsed: true,
       items: [
-        'gpt-researcher/frontend/frontend',
-        'gpt-researcher/frontend/playing-with-webhooks',
+        'gpt-researcher/frontend/introduction',
+        'gpt-researcher/frontend/nextjs-frontend',
+        'gpt-researcher/frontend/vanilla-js-frontend',
+        'gpt-researcher/frontend/discord-bot',
+        'gpt-researcher/frontend/visualizing-websockets'
       ],
     },
     {
@@ -60,6 +65,18 @@
         'gpt-researcher/context/local-docs',
         'gpt-researcher/context/filtering-by-domain',
         'gpt-researcher/context/vector-stores',
+        'gpt-researcher/context/data-ingestion'
+        ]
+    },
+    {
+      type: 'category',
+      label: 'Handling Logs',
+      collapsible: true,
+      collapsed: true,
+      items: [
+        'gpt-researcher/handling-logs/all-about-logs',
+        'gpt-researcher/handling-logs/simple-logs-example',
+        'gpt-researcher/handling-logs/langsmith-logs'
         ]
     },
     {
@@ -69,6 +86,9 @@
       collapsed: true,
       items: [
         'gpt-researcher/llms/llms',
+        'gpt-researcher/llms/supported-llms',
+        'gpt-researcher/llms/testing-your-llm',
+        'gpt-researcher/llms/running-with-azure',
         'gpt-researcher/llms/running-with-ollama'
       ]
     },
@@ -79,6 +99,7 @@
       collapsed: true,
       items: [
         'gpt-researcher/search-engines/retrievers',
+        'gpt-researcher/search-engines/test-your-retriever'
         ]
     },
     {
