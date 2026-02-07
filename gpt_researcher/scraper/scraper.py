@@ -6,6 +6,9 @@ import subprocess
 import sys
 import importlib
 import logging
+import socket
+import ipaddress
+from urllib.parse import urlparse
 
 from gpt_researcher.utils.workers import WorkerPool
 
@@ -87,10 +90,55 @@ class Scraper:
                     f"`pip install -U {pkg_inst_name}`"
                 )
 
+    def validate_url(self, url: str) -> bool:
+        """
+        Validates the URL to prevent SSRF attacks.
+        Checks for:
+        - Valid scheme (http/https)
+        - No private/loopback IP addresses
+        """
+        try:
+            parsed = urlparse(url)
+            if parsed.scheme not in ["http", "https"]:
+                self.logger.warning(f"Invalid scheme for URL: {url}")
+                return False
+
+            hostname = parsed.hostname
+            if not hostname:
+                self.logger.warning(f"Invalid hostname for URL: {url}")
+                return False
+
+            # Resolve hostname to IP
+            try:
+                ip_address = socket.gethostbyname(hostname)
+            except socket.gaierror:
+                self.logger.warning(f"Could not resolve hostname for URL: {url}")
+                return False
+
+            # Check if IP is private or loopback
+            ip = ipaddress.ip_address(ip_address)
+            if ip.is_private or ip.is_loopback:
+                self.logger.warning(f"Blocked access to private/loopback IP {ip} for URL: {url}")
+                return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error validating URL {url}: {str(e)}")
+            return False
+
+    async def validate_url_async(self, url: str) -> bool:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.validate_url, url)
+
     async def extract_data_from_url(self, link, session):
         """
         Extracts the data from the link with logging
         """
+        # Validate URL before processing
+        if not await self.validate_url_async(link):
+            return {"url": link, "raw_content": None, "image_urls": [], "title": ""}
+
         async with self.worker_pool.throttle():
             try:
                 Scraper = self.get_scraper(link)
