@@ -5,6 +5,7 @@ import re
 import time
 import shutil
 import traceback
+import unicodedata
 from typing import Awaitable, Dict, List, Any
 from fastapi.responses import JSONResponse, FileResponse
 from gpt_researcher.document.document import DocumentLoader
@@ -101,19 +102,88 @@ class Researcher:
 
 def sanitize_filename(filename: str) -> str:
     # Split into components
-    prefix, timestamp, *task_parts = filename.split('_')
-    task = '_'.join(task_parts)
+    try:
+        parts = filename.split('_')
+        if len(parts) >= 3:
+            prefix = parts[0]
+            timestamp = parts[1]
+            task_parts = parts[2:]
+            task = '_'.join(task_parts)
+
+            # Calculate max length for task portion
+            # 255 - len(os.getcwd()) - len("\\gpt-researcher\\outputs\\") - len("task_") - len(timestamp) - len("_.json") - safety_margin
+            max_task_length = 255 - len(os.getcwd()) - 24 - 5 - 10 - 6 - 5  # ~189 chars for task
+
+            # Truncate task if needed
+            truncated_task = task[:max_task_length] if len(task) > max_task_length else task
+
+            # Reassemble and clean the filename
+            sanitized = f"{prefix}_{timestamp}_{truncated_task}"
+            return re.sub(r"[^\w\s-]", "", sanitized).strip()
+    except Exception:
+        pass
+    return re.sub(r"[^\w\s-]", "", filename).strip()
+
+def secure_filename(filename: str) -> str:
+    if not filename:
+        raise ValueError("Filename cannot be empty")
+
+    # Null bytes
+    if '\0' in filename:
+        filename = filename.replace('\0', '')
+
+    # Unicode normalization
+    filename = unicodedata.normalize('NFKC', filename)
+
+    # Strip control characters
+    filename = "".join(ch for ch in filename if unicodedata.category(ch)[0] != "C")
+
+    # Check for empty after cleaning
+    if not filename.strip():
+        raise ValueError("Filename cannot be empty")
+
+    # Path traversal check
+    if re.match(r'^\.\.[/\\]', filename):
+         raise ValueError("Path traversal detected")
+
+    # Basic sanitization
+    # Remove drive letters (C:)
+    if ":" in filename:
+        filename = re.sub(r'^[a-zA-Z]:', '', filename)
+
+    # Remove path separators
+    filename = filename.replace('/', '').replace('\\', '')
     
-    # Calculate max length for task portion
-    # 255 - len(os.getcwd()) - len("\\gpt-researcher\\outputs\\") - len("task_") - len(timestamp) - len("_.json") - safety_margin
-    max_task_length = 255 - len(os.getcwd()) - 24 - 5 - 10 - 6 - 5  # ~189 chars for task
+    # Remove ".." sequences that might remain
+    while '..' in filename:
+        filename = filename.replace('..', '')
+
+    # Strip leading/trailing dots and spaces
+    filename = filename.strip(' .')
     
-    # Truncate task if needed
-    truncated_task = task[:max_task_length] if len(task) > max_task_length else task
+    if not filename:
+         raise ValueError("Filename cannot be empty")
+
+    # Check reserved names
+    root, _ = os.path.splitext(filename)
+    if root.upper() in {'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'LPT1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'}:
+        raise ValueError("Filename is a reserved name")
+
+    # Length limit
+    if len(filename.encode('utf-8')) > 255:
+        raise ValueError("Filename is too long")
+
+    return filename
+
+def validate_file_path(path: str, base_dir: str) -> str:
+    # Resolve absolute paths
+    abs_base = os.path.realpath(base_dir)
+    abs_path = os.path.realpath(path)
     
-    # Reassemble and clean the filename
-    sanitized = f"{prefix}_{timestamp}_{truncated_task}"
-    return re.sub(r"[^\w\s-]", "", sanitized).strip()
+    if not abs_path.startswith(abs_base):
+        raise ValueError(f"Path {path} is outside allowed directory {base_dir}")
+
+    return abs_path
 
 
 async def handle_start_command(websocket, data: str, manager):
@@ -214,7 +284,21 @@ def update_environment_variables(config: Dict[str, str]):
 
 
 async def handle_file_upload(file, DOC_PATH: str) -> Dict[str, str]:
-    file_path = os.path.join(DOC_PATH, os.path.basename(file.filename))
+    try:
+        filename = secure_filename(file.filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid file: {str(e)}")
+
+    file_path = os.path.join(DOC_PATH, filename)
+
+    # Ensure conflict resolution uses secure filename
+    base, ext = os.path.splitext(filename)
+    counter = 1
+    while os.path.exists(file_path):
+        filename = f"{base}_{counter}{ext}"
+        file_path = os.path.join(DOC_PATH, filename)
+        counter += 1
+
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     print(f"File uploaded to {file_path}")
@@ -222,12 +306,21 @@ async def handle_file_upload(file, DOC_PATH: str) -> Dict[str, str]:
     document_loader = DocumentLoader(DOC_PATH)
     await document_loader.load()
 
-    return {"filename": file.filename, "path": file_path}
+    return {"filename": filename, "path": file_path}
 
 
 async def handle_file_deletion(filename: str, DOC_PATH: str) -> JSONResponse:
-    file_path = os.path.join(DOC_PATH, os.path.basename(filename))
+    try:
+        secure_name = secure_filename(filename)
+    except ValueError as e:
+         return JSONResponse(status_code=400, content={"message": f"Invalid filename: {str(e)}"})
+
+    file_path = os.path.join(DOC_PATH, secure_name)
+
     if os.path.exists(file_path):
+        if os.path.isdir(file_path):
+             return JSONResponse(status_code=400, content={"message": "Path is not a file."})
+
         os.remove(file_path)
         print(f"File deleted: {file_path}")
         return JSONResponse(content={"message": "File deleted successfully"})

@@ -151,7 +151,9 @@ class TestHandleFileUpload:
         """Create a mock file object for testing."""
         mock_file = Mock()
         mock_file.filename = "test.txt"
+        # Configure file.read to return empty bytes to simulate empty file or end of file
         mock_file.file = Mock()
+        mock_file.file.read.return_value = b""
         return mock_file
     
     @pytest.fixture
