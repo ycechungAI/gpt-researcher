@@ -150,7 +150,14 @@ async def serve_frontend():
 
 @app.get("/report/{research_id}")
 async def read_report(request: Request, research_id: str):
-    docx_path = os.path.join('outputs', f"{research_id}.docx")
+    base_dir = os.path.abspath('outputs')
+    docx_path = os.path.abspath(os.path.join(base_dir, f"{research_id}.docx"))
+
+    # Path traversal protection: ensure the resolved path is within the outputs directory
+    if os.path.commonpath([base_dir, docx_path]) != base_dir:
+        logger.warning(f"Path traversal attempt detected for research_id: {research_id}")
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     if not os.path.exists(docx_path):
         return {"message": "Report not found."}
     return FileResponse(docx_path)
