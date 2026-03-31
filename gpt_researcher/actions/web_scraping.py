@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 from colorama import Fore, Style
 
@@ -5,6 +6,7 @@ from gpt_researcher.utils.workers import WorkerPool
 from ..scraper import Scraper
 from ..config.config import Config
 from ..utils.logger import get_formatted_logger
+from ..utils.validators import validate_url
 
 logger = get_formatted_logger()
 
@@ -31,7 +33,20 @@ async def scrape_urls(
     )
 
     try:
-        scraper = Scraper(urls, user_agent, cfg.scraper, worker_pool=worker_pool)
+        # Filter unsafe URLs (SSRF protection)
+        safe_urls = []
+        loop = asyncio.get_running_loop()
+        for url in urls:
+            # Run validation in executor to avoid blocking the event loop with DNS resolution
+            if await loop.run_in_executor(None, validate_url, url):
+                safe_urls.append(url)
+            else:
+                logger.warning(f"Skipping unsafe or invalid URL: {url}")
+
+        if not safe_urls:
+             return [], []
+
+        scraper = Scraper(safe_urls, user_agent, cfg.scraper, worker_pool=worker_pool)
         scraped_data = await scraper.run()
         for item in scraped_data:
             if 'image_urls' in item:
