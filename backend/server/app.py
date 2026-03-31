@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from server.websocket_manager import WebSocketManager
 from server.server_utils import (
-    get_config_dict, sanitize_filename,
+    get_config_dict, sanitize_filename, secure_filename,
     update_environment_variables, handle_file_upload, handle_file_deletion,
     execute_multi_agents, handle_websocket_communication
 )
@@ -159,7 +159,12 @@ async def serve_frontend():
 
 @app.get("/report/{research_id}")
 async def read_report(request: Request, research_id: str):
-    docx_path = os.path.join('outputs', f"{research_id}.docx")
+    try:
+        secure_id = secure_filename(research_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid research ID")
+
+    docx_path = os.path.join('outputs', f"{secure_id}.docx")
     if not os.path.exists(docx_path):
         return {"message": "Report not found."}
     return FileResponse(docx_path)

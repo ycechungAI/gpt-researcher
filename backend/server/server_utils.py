@@ -5,6 +5,7 @@ import re
 import time
 import shutil
 import traceback
+import unicodedata
 from typing import Awaitable, Dict, List, Any
 from fastapi.responses import JSONResponse, FileResponse
 from gpt_researcher.document.document import DocumentLoader
