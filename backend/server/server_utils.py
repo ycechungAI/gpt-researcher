@@ -15,6 +15,7 @@ from datetime import datetime
 from fastapi import HTTPException
 import logging
 import hashlib
+import unicodedata
 
 # Import chat agent
 try:
@@ -190,6 +191,57 @@ def sanitize_filename(filename: str) -> str:
     # Reassemble and clean the filename
     sanitized = f"{prefix}_{timestamp}_{task_hash}"
     return re.sub(r"[^\w\s-]", "", sanitized).strip()
+
+def secure_filename(filename: str) -> str:
+    """Sanitizes a filename to prevent path traversal and other security issues."""
+    if not filename or filename.isspace() or filename.strip() == "." * len(filename.strip()):
+        raise ValueError("empty filename")
+
+    if len(filename) > 255:
+        raise ValueError("filename too long")
+
+    # Block explicitly malicious path traversal starts
+    if filename.startswith("../") or filename.startswith("..\\"):
+        raise ValueError("path traversal attempt")
+
+    # Normalize unicode to avoid bypassing filters
+    filename = unicodedata.normalize('NFKD', filename)
+    filename = filename.encode('ascii', 'ignore').decode('ascii')
+
+    # Remove control characters
+    filename = re.sub(r'[\x00-\x1f\x7f]', '', filename)
+
+    # Remove slashes and backslashes to prevent directory traversal
+    filename = filename.replace('/', '').replace('\\', '')
+
+    # Remove windows drive letter (e.g., C:sensitive.txt -> sensitive.txt)
+    if len(filename) >= 2 and filename[1] == ':' and filename[0].isalpha():
+        filename = filename[2:]
+
+    # Remove leading spaces and dots
+    filename = filename.lstrip('. ')
+
+    if not filename:
+        raise ValueError("empty filename after sanitization")
+
+    # Block Windows reserved names
+    basename = filename.split('.')[0].upper()
+    reserved_names = {'CON', 'PRN', 'AUX', 'NUL', 'COM1', 'LPT1'}
+    if basename in reserved_names:
+        raise ValueError("reserved name")
+
+    return filename
+
+def validate_file_path(target_path: str, base_dir: str) -> str:
+    """Ensures the resolved target path strictly resides within the base directory."""
+    abs_base = os.path.abspath(base_dir)
+    # Use realpath to resolve symlinks
+    abs_target = os.path.realpath(target_path)
+
+    if os.path.commonpath([abs_base, abs_target]) != abs_base:
+        raise ValueError("outside allowed directory")
+
+    return abs_target
 
 
 async def handle_start_command(websocket, data: str, manager):
@@ -386,8 +438,14 @@ async def handle_file_upload(file, DOC_PATH: str) -> Dict[str, str]:
             pass
     print(f"File uploaded to {file_path}")
 
-    document_loader = DocumentLoader(DOC_PATH)
-    await document_loader.load()
+        # Handle file conflicts by appending a counter
+        base, ext = os.path.splitext(safe_filename)
+        counter = 1
+        while os.path.exists(validated_path):
+            safe_filename = f"{base}_{counter}{ext}"
+            target_path = os.path.join(DOC_PATH, safe_filename)
+            validated_path = validate_file_path(target_path, DOC_PATH)
+            counter += 1
 
     return {"filename": filename, "path": file_path}
 

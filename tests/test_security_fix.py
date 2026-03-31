@@ -149,9 +149,10 @@ class TestHandleFileUpload:
     @pytest.fixture
     def mock_file(self):
         """Create a mock file object for testing."""
+        from io import BytesIO
         mock_file = Mock()
         mock_file.filename = "test.txt"
-        mock_file.file = Mock()
+        mock_file.file = BytesIO(b"dummy content")
         return mock_file
     
     @pytest.fixture
